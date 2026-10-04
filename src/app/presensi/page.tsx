@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CheckCheck, Loader2, Save } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { PresensiModeSwitcher } from "@/components/presensi-mode-switcher";
 import { Button } from "@/components/ui/button";
 import { students, type AttendanceStatus } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -95,10 +96,13 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">{today}</p>
         </div>
-        <Button variant="outline" className="w-fit gap-2" onClick={markAllPresent}>
-          <CheckCheck className="size-4" />
-          Tandai Semua Hadir
-        </Button>
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          <PresensiModeSwitcher />
+          <Button variant="outline" className="w-fit gap-2" onClick={markAllPresent}>
+            <CheckCheck className="size-4" />
+            Tandai Semua Hadir
+          </Button>
+        </div>
       </section>
 
       <section className="grid grid-cols-4 gap-3" aria-label="Ringkasan status">
