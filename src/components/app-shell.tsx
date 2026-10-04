@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BookOpen,
   ClipboardCheck,
@@ -19,11 +21,11 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Presensi", icon: ClipboardCheck },
-  { label: "Buku Nilai", icon: BookOpen },
-  { label: "Buku Santri", icon: UsersRound },
-  { label: "Sinkronisasi", icon: RefreshCw },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Presensi", href: "/presensi", icon: ClipboardCheck },
+  { label: "Buku Nilai", href: "/buku-nilai", icon: BookOpen },
+  { label: "Buku Santri", href: "/buku-santri", icon: UsersRound },
+  { label: "Sinkronisasi", href: "/sinkronisasi", icon: RefreshCw },
 ];
 
 type AppShellProps = {
@@ -32,7 +34,8 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const [activeClassId, setActiveClassId] = useState("class-9a");
-  const [activeNavigation, setActiveNavigation] = useState("Dashboard");
+  const pathname = usePathname();
+  const activeNavigation = navigation.find((item) => item.href === pathname) ?? navigation[0];
   const context = getClassContext(activeClassId);
 
   return (
@@ -53,12 +56,11 @@ export function AppShell({ children }: AppShellProps) {
           <nav className="mt-3 space-y-1" aria-label="Navigasi utama">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = activeNavigation === item.label;
+              const isActive = activeNavigation.href === item.href;
               return (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => setActiveNavigation(item.label)}
+                <Link
+                  key={item.href}
+                  href={item.href}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
                     isActive
@@ -69,7 +71,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Icon className="size-[18px]" aria-hidden="true" />
                   {item.label}
                   {isActive && <span className="ml-auto size-1.5 rounded-full bg-primary" />}
-                </button>
+                </Link>
               );
             })}
           </nav>
@@ -96,8 +98,8 @@ export function AppShell({ children }: AppShellProps) {
                 <Menu className="size-5" aria-hidden="true" />
               </button>
               <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{activeNavigation}</p>
-                <h1 className="truncate font-heading text-lg font-bold tracking-tight sm:text-xl">Ringkasan kelas</h1>
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{activeNavigation.label}</p>
+                <h1 className="truncate font-heading text-lg font-bold tracking-tight sm:text-xl">{activeNavigation.label === "Dashboard" ? "Ringkasan kelas" : activeNavigation.label}</h1>
               </div>
             </div>
             <ClassSwitcher value={activeClassId} onChange={setActiveClassId} />
@@ -120,12 +122,11 @@ export function AppShell({ children }: AppShellProps) {
         <div className="mx-auto flex max-w-lg items-center justify-around">
           {navigation.slice(0, 4).map((item) => {
             const Icon = item.icon;
-            const isActive = activeNavigation === item.label;
+            const isActive = activeNavigation.href === item.href;
             return (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => setActiveNavigation(item.label)}
+              <Link
+                key={item.href}
+                href={item.href}
                 className={cn(
                   "flex min-w-16 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors",
                   isActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
@@ -133,7 +134,7 @@ export function AppShell({ children }: AppShellProps) {
               >
                 <Icon className="size-[18px]" aria-hidden="true" />
                 {item.label}
-              </button>
+              </Link>
             );
           })}
         </div>
