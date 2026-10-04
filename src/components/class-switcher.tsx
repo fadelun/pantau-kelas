@@ -1,0 +1,65 @@
+"use client";
+
+import { ChevronDown, GraduationCap } from "lucide-react";
+
+import { classes, type SchoolClass } from "@/lib/mock-data";
+
+export type ClassContext = {
+  classId: string;
+  role: "Wali Kelas" | "Guru Mapel";
+  className: string;
+  subject?: string;
+};
+
+export const classContexts: ClassContext[] = classes.map((schoolClass) => ({
+  classId: schoolClass.id,
+  role: schoolClass.type === "homeroom" ? "Wali Kelas" : "Guru Mapel",
+  className: schoolClass.name,
+  subject: schoolClass.subject,
+}));
+
+export function getClassContext(classId: string) {
+  return classContexts.find((context) => context.classId === classId) ?? classContexts[0];
+}
+
+type ClassSwitcherProps = {
+  value: string;
+  onChange: (classId: string) => void;
+};
+
+export function ClassSwitcher({ value, onChange }: ClassSwitcherProps) {
+  return (
+    <label className="group relative flex min-w-48 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <GraduationCap className="size-4" aria-hidden="true" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Konteks kerja
+        </span>
+        <select
+          aria-label="Pilih konteks kelas"
+          className="w-full appearance-none truncate bg-transparent pr-5 text-xs font-semibold text-foreground outline-none"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {classContexts.map((context) => (
+            <option key={context.classId} value={context.classId}>
+              {context.role} · {context.className}
+              {context.subject ? ` · ${context.subject}` : ""}
+            </option>
+          ))}
+        </select>
+      </span>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-transform group-focus-within:rotate-180" aria-hidden="true" />
+    </label>
+  );
+}
+
+export function formatClassContext(context: ClassContext) {
+  return `${context.role} · ${context.className}${context.subject ? ` · ${context.subject}` : ""}`;
+}
+
+export function isSchoolClass(value: unknown): value is SchoolClass {
+  return typeof value === "object" && value !== null && "id" in value;
+}
