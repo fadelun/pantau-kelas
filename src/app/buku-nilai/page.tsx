@@ -8,9 +8,19 @@ import {
   useTable,
   type ColumnDef,
 } from "@tanstack/react-table";
+import { PlusIcon } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
-import { assessments, grades, students, type Student } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { assessments, grades, students, type Assessment, type Student } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 type GradeRow = {
@@ -41,10 +51,24 @@ function MissingValue() {
   return <span className="text-muted-foreground/50">—</span>;
 }
 
-/** Derive initial rows from mock data for a given classId. */
-function deriveRows(classId: string): GradeRow[] {
+/** Average color badge: ≥80 green, 70–79 amber, <70 red. */
+function AverageBadge({ value }: { value: number }) {
+  const colorClass =
+    value >= 80
+      ? "bg-status-hadir-bg text-status-hadir-text border-status-hadir-border"
+      : value >= 70
+        ? "bg-status-izin-bg text-status-izin-text border-status-izin-border"
+        : "bg-status-alfa-bg text-status-alfa-text border-status-alfa-border";
+  return (
+    <span className={cn("rounded-md border px-2 py-0.5 text-xs font-semibold tabular-nums", colorClass)}>
+      {value}
+    </span>
+  );
+}
+
+/** Derive initial rows from mock data for a given classId and assessment list. */
+function deriveRows(classId: string, classAssessments: Assessment[]): GradeRow[] {
   const classStudents = students.filter((s) => s.classId === classId);
-  const classAssessments = assessments.filter((a) => a.classId === classId);
   return classStudents.map((student) => {
     const scores: Record<string, number | undefined> = {};
     for (const assessment of classAssessments) {
@@ -83,20 +107,156 @@ export default function BukuNilaiPage() {
   );
 }
 
-function GradeSheetBoard({ classId, className }: { classId: string; className: string }) {
-  const classAssessments = useMemo(
-    () => assessments.filter((a) => a.classId === classId),
-    [classId],
+const CATEGORY_OPTIONS: Assessment["category"][] = ["tugas", "kuis", "pts", "pas"];
+
+function AddAssessmentDialog({
+  classId,
+  onAdd,
+}: {
+  classId: string;
+  onAdd: (assessment: Assessment) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<Assessment["category"]>("tugas");
+  const [weight, setWeight] = useState<string>("10");
+
+  function resetForm() {
+    setTitle("");
+    setCategory("tugas");
+    setWeight("10");
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (next) resetForm();
+    setOpen(next);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const w = Math.min(100, Math.max(1, parseInt(weight, 10) || 1));
+    onAdd({
+      id: `assessment-${classId}-${Date.now()}`,
+      classId,
+      title: title.trim(),
+      category,
+      weight: w,
+    });
+    setOpen(false);
+  }
+
+  const canSubmit = title.trim().length > 0 && weight !== "" && parseInt(weight, 10) >= 1;
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger
+        render={
+          <Button variant="default" size="sm" className="gap-1.5" />
+        }
+      >
+        <PlusIcon className="size-4" />
+        Tambah Asesmen
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Tambah Asesmen Baru</DialogTitle>
+        </DialogHeader>
+        <form id="add-assessment-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Judul */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="asm-title" className="text-xs font-medium text-muted-foreground">
+              Judul <span className="text-destructive">*</span>
+            </label>
+            <input
+              id="asm-title"
+              type="text"
+              required
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="cth. Tugas 3"
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          {/* Kategori */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="asm-category" className="text-xs font-medium text-muted-foreground">
+              Kategori
+            </label>
+            {/* ponytail: native select — no Select primitive in dialog.tsx; upgrade to custom if needed. */}
+            <select
+              id="asm-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Assessment["category"])}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm capitalize outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c} className="capitalize">
+                  {c.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Bobot */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="asm-weight" className="text-xs font-medium text-muted-foreground">
+              Bobot (%) <span className="text-destructive">*</span>
+            </label>
+            <input
+              id="asm-weight"
+              inputMode="numeric"
+              required
+              value={weight}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, "");
+                setWeight(raw === "" ? "" : String(Math.min(100, Math.max(1, parseInt(raw, 10)))));
+              }}
+              placeholder="1–100"
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+        </form>
+        <DialogFooter>
+          <Button
+            type="submit"
+            form="add-assessment-form"
+            disabled={!canSubmit}
+          >
+            Tambah
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function GradeSheetBoard({ classId, className }: { classId: string; className: string }) {
+  // ponytail: mock statis — data dari Supabase (task 13) akan replace deriveRows.
+  // key={classId} on GradeSheetBoard (in BukuNilaiPage) remounts this component on class switch,
+  // so useState initializer runs fresh — no useEffect needed. New assessments are session-only.
+  const [classAssessments, setClassAssessments] = useState<Assessment[]>(
+    () => assessments.filter((a) => a.classId === classId),
+  );
+
   const classStudents = useMemo(
     () => students.filter((s) => s.classId === classId),
     [classId],
   );
 
-  // ponytail: mock statis — data dari Supabase (task 13) akan replace deriveRows.
-  // key={classId} on GradeSheetBoard (in BukuNilaiPage) remounts this component on class switch,
-  // so useState initializer runs fresh — no useEffect needed.
-  const [rows, setRows] = useState<GradeRow[]>(() => deriveRows(classId));
+  const [rows, setRows] = useState<GradeRow[]>(() =>
+    deriveRows(classId, assessments.filter((a) => a.classId === classId)),
+  );
+
+  const handleAddAssessment = useCallback((assessment: Assessment) => {
+    setClassAssessments((prev) => [...prev, assessment]);
+    // New assessment gets undefined scores for all existing rows (computeAverage handles undefined).
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        scores: { ...row.scores, [assessment.id]: undefined },
+      })),
+    );
+  }, []);
 
   // Ref map for keyboard Enter navigation: key = `${studentId}:${assessmentId}`
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -152,7 +312,7 @@ function GradeSheetBoard({ classId, className }: { classId: string; className: s
           <div className="flex flex-col items-center gap-0.5">
             <span>{assessment.title}</span>
             <span className="text-[9px] font-medium normal-case tracking-normal text-muted-foreground/70">
-              Bobot {assessment.weight}%
+              {assessment.category} · Bobot {assessment.weight}%
             </span>
           </div>
         ),
@@ -203,11 +363,7 @@ function GradeSheetBoard({ classId, className }: { classId: string; className: s
         accessorFn: (row) => computeAverage(row, classAssessments),
         cell: (info) => {
           const val = info.getValue<number | null>();
-          return val != null ? (
-            <span className="font-semibold">{val}</span>
-          ) : (
-            <MissingValue />
-          );
+          return val != null ? <AverageBadge value={val} /> : <MissingValue />;
         },
       },
     ];
@@ -218,13 +374,20 @@ function GradeSheetBoard({ classId, className }: { classId: string; className: s
   return (
     <div className="flex flex-col gap-5">
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <p className="text-sm font-medium text-muted-foreground">Buku nilai</p>
-        <h2 className="mt-1 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-          Kelas {className}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {classAssessments.length} asesmen · {classStudents.length} santri
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Buku nilai</p>
+            <h2 className="mt-1 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+              Kelas {className}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {classAssessments.length} asesmen · {classStudents.length} santri
+            </p>
+          </div>
+          <div className="shrink-0 pt-1">
+            <AddAssessmentDialog classId={classId} onAdd={handleAddAssessment} />
+          </div>
+        </div>
       </section>
 
       {classAssessments.length === 0 ? (
