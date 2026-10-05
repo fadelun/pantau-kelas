@@ -35,7 +35,10 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const [activeClassId, setActiveClassId] = useState("class-9a");
   const pathname = usePathname();
-  const activeNavigation = navigation.find((item) => item.href === pathname) ?? navigation[0];
+  const activeNavigation =
+    navigation.find((item) => item.href === pathname) ??
+    navigation.find((item) => item.href !== "/" && pathname.startsWith(`${item.href}/`)) ??
+    navigation[0];
   const context = getClassContext(activeClassId);
 
   return (
