@@ -2,7 +2,7 @@
 
 import { ChevronDown, GraduationCap } from "lucide-react";
 
-import { classes, type SchoolClass } from "@/lib/mock-data";
+import { classes } from "@/lib/mock-data";
 
 export type ClassContext = {
   classId: string;
@@ -11,7 +11,7 @@ export type ClassContext = {
   subject?: string;
 };
 
-export const classContexts: ClassContext[] = classes.map((schoolClass) => ({
+const classContexts: ClassContext[] = classes.map((schoolClass) => ({
   classId: schoolClass.id,
   role: schoolClass.type === "homeroom" ? "Wali Kelas" : "Guru Mapel",
   className: schoolClass.name,
@@ -45,8 +45,7 @@ export function ClassSwitcher({ value, onChange }: ClassSwitcherProps) {
         >
           {classContexts.map((context) => (
             <option key={context.classId} value={context.classId}>
-              {context.role} · {context.className}
-              {context.subject ? ` · ${context.subject}` : ""}
+              {formatClassContext(context)}
             </option>
           ))}
         </select>
@@ -58,8 +57,4 @@ export function ClassSwitcher({ value, onChange }: ClassSwitcherProps) {
 
 export function formatClassContext(context: ClassContext) {
   return `${context.role} · ${context.className}${context.subject ? ` · ${context.subject}` : ""}`;
-}
-
-export function isSchoolClass(value: unknown): value is SchoolClass {
-  return typeof value === "object" && value !== null && "id" in value;
 }

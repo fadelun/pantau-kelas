@@ -14,14 +14,15 @@ import {
 } from "lucide-react";
 
 import {
+  type ClassContext,
   ClassSwitcher,
   formatClassContext,
   getClassContext,
 } from "@/components/class-switcher";
 import { cn } from "@/lib/utils";
 
-const navigation = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+const navigation: { label: string; href: string; heading?: string; icon: typeof LayoutDashboard }[] = [
+  { label: "Dashboard", href: "/", heading: "Ringkasan kelas", icon: LayoutDashboard },
   { label: "Presensi", href: "/presensi", icon: ClipboardCheck },
   { label: "Buku Nilai", href: "/buku-nilai", icon: BookOpen },
   { label: "Buku Santri", href: "/buku-santri", icon: UsersRound },
@@ -29,7 +30,7 @@ const navigation = [
 ];
 
 type AppShellProps = {
-  children: (context: ReturnType<typeof getClassContext>) => ReactNode;
+  children: (context: ClassContext) => ReactNode;
 };
 
 export function AppShell({ children }: AppShellProps) {
@@ -102,7 +103,7 @@ export function AppShell({ children }: AppShellProps) {
               </button>
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{activeNavigation.label}</p>
-                <h1 className="truncate font-heading text-lg font-bold tracking-tight sm:text-xl">{activeNavigation.label === "Dashboard" ? "Ringkasan kelas" : activeNavigation.label}</h1>
+                <h1 className="truncate font-heading text-lg font-bold tracking-tight sm:text-xl">{activeNavigation.heading ?? activeNavigation.label}</h1>
               </div>
             </div>
             <ClassSwitcher value={activeClassId} onChange={setActiveClassId} />

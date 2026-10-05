@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import * as XLSX from "xlsx";
 import { DownloadIcon, UploadIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,20 @@ import {
 } from "@/components/ui/dialog";
 import { type Assessment, type Student } from "@/lib/mock-data";
 
-// ── Template downloader (exported so page keeps thin) ───────────────────────
+// ── Excel column contract (shared by template writer and parser) ────────────
 
-export function downloadGradeTemplate(className: string, students: Student[]) {
+const GRADE_TEMPLATE_HEADERS = ["No Absen", "Nama Santri", "Nilai"] as const;
+
+async function loadXLSX() {
+  return import("xlsx");
+}
+
+// ── Template downloader ──────────────────────────────────────────────────────
+
+async function downloadGradeTemplate(className: string, students: Student[]) {
+  const XLSX = await loadXLSX();
   const aoa = [
-    ["No Absen", "Nama Santri", "Nilai"],
+    [...GRADE_TEMPLATE_HEADERS],
     ...students.map((s) => [s.noAbsen, s.name, ""]),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -84,6 +92,7 @@ export function ExcelImportDialog({
     }
     try {
       const buf = await file.arrayBuffer();
+      const XLSX = await loadXLSX();
       const wb = XLSX.read(buf, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
@@ -91,9 +100,9 @@ export function ExcelImportDialog({
         blankrows: false,
       });
 
-      // Skip header row if first cell is the literal string "No Absen"
+      // Skip header row if first cell matches the template header
       const dataRows =
-        String(rawRows[0]?.[0] ?? "").trim() === "No Absen"
+        String(rawRows[0]?.[0] ?? "").trim() === GRADE_TEMPLATE_HEADERS[0]
           ? rawRows.slice(1)
           : rawRows;
 
@@ -137,22 +146,21 @@ export function ExcelImportDialog({
 
   // ── Derived values ────────────────────────────────────────────────────────
 
-  // Match parsed rows to students by noAbsen
-  const matchedScores = React.useMemo(() => {
-    if (!parsed) return [];
-    return parsed.flatMap((row) => {
-      const student = students.find((s) => s.noAbsen === row.noAbsen);
-      if (!student || row.score == null) return [];
-      return [{ studentId: student.id, score: row.score }];
-    });
-  }, [parsed, students]);
-
-  const unmatchedCount = React.useMemo(() => {
-    if (!parsed) return 0;
-    return parsed.filter((row) => {
-      const student = students.find((s) => s.noAbsen === row.noAbsen);
-      return !student;
-    }).length;
+  // Match parsed rows to students by noAbsen (single pass produces both)
+  const { matchedScores, unmatchedCount } = React.useMemo(() => {
+    if (!parsed) return { matchedScores: [] as { studentId: string; score: number }[], unmatchedCount: 0 };
+    const byAbsen = new Map(students.map((s) => [s.noAbsen, s]));
+    const matchedScores: { studentId: string; score: number }[] = [];
+    let unmatchedCount = 0;
+    for (const row of parsed) {
+      const student = byAbsen.get(row.noAbsen);
+      if (!student) {
+        unmatchedCount++;
+      } else if (row.score != null) {
+        matchedScores.push({ studentId: student.id, score: row.score });
+      }
+    }
+    return { matchedScores, unmatchedCount };
   }, [parsed, students]);
 
   const preview = parsed?.slice(0, 3) ?? [];
@@ -324,7 +332,9 @@ export function DownloadTemplateButton({
       variant="outline"
       size="sm"
       className="gap-1.5"
-      onClick={() => downloadGradeTemplate(className, students)}
+      onClick={() => {
+        void downloadGradeTemplate(className, students);
+      }}
     >
       <DownloadIcon className="size-4" />
       Unduh Template
