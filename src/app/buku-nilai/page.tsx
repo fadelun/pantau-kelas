@@ -10,6 +10,11 @@ import {
 } from "@tanstack/react-table";
 import { PlusIcon } from "lucide-react";
 
+import {
+  DownloadTemplateButton,
+  ExcelImportDialog,
+} from "@/components/excel-import-dialog";
+
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -247,6 +252,23 @@ function GradeSheetBoard({ classId, className }: { classId: string; className: s
     deriveRows(classId, assessments.filter((a) => a.classId === classId)),
   );
 
+  const handleImport = useCallback(
+    (
+      assessmentId: string,
+      scores: { studentId: string; score: number }[],
+    ) => {
+      setRows((prev) =>
+        prev.map((row) => {
+          const match = scores.find((s) => s.studentId === row.student.id);
+          return match
+            ? { ...row, scores: { ...row.scores, [assessmentId]: match.score } }
+            : row;
+        }),
+      );
+    },
+    [],
+  );
+
   const handleAddAssessment = useCallback((assessment: Assessment) => {
     setClassAssessments((prev) => [...prev, assessment]);
     // New assessment gets undefined scores for all existing rows (computeAverage handles undefined).
@@ -384,7 +406,13 @@ function GradeSheetBoard({ classId, className }: { classId: string; className: s
               {classAssessments.length} asesmen · {classStudents.length} santri
             </p>
           </div>
-          <div className="shrink-0 pt-1">
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 pt-1">
+            <DownloadTemplateButton className={className} students={classStudents} />
+            <ExcelImportDialog
+              students={classStudents}
+              assessments={classAssessments}
+              onImport={handleImport}
+            />
             <AddAssessmentDialog classId={classId} onAdd={handleAddAssessment} />
           </div>
         </div>
