@@ -1,17 +1,30 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageCircle, Phone } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Eye,
+  MessageCircle,
+  MessageSquarePlus,
+  Phone,
+  ThumbsUp,
+  Trophy,
+} from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   assessments,
   classes,
   getStudentAttendance,
   getStudentGrades,
+  getStudentNotes,
   students,
+  type AnecdotalCategory,
+  type AnecdotalNote,
   type Student,
 } from "@/lib/mock-data";
 
@@ -60,6 +73,133 @@ function nilaiPredikat(score: number): string {
   if (score >= 80) return "Baik Sekali";
   if (score >= 75) return "Baik";
   return "Di Bawah KKM";
+}
+
+const categoryStyles: Record<AnecdotalCategory, string> = {
+  Positif: "border-status-hadir-border bg-status-hadir-bg text-status-hadir-text",
+  Prestasi: "border-status-tahfidz-border bg-status-tahfidz-bg text-status-tahfidz-text",
+  Perhatian: "border-status-izin-border bg-status-izin-bg text-status-izin-text",
+  Negatif: "border-status-alfa-border bg-status-alfa-bg text-status-alfa-text",
+};
+
+const categoryIcons: Record<AnecdotalCategory, typeof ThumbsUp> = {
+  Positif: ThumbsUp,
+  Prestasi: Trophy,
+  Perhatian: Eye,
+  Negatif: AlertTriangle,
+};
+
+const categories: AnecdotalCategory[] = ["Positif", "Prestasi", "Perhatian", "Negatif"];
+
+function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso));
+}
+
+function AnecdotalFeed({ studentId }: { studentId: string }) {
+  const [notes, setNotes] = useState<AnecdotalNote[]>(() => getStudentNotes(studentId));
+  const [formOpen, setFormOpen] = useState(false);
+  const [category, setCategory] = useState<AnecdotalCategory>("Positif");
+  const [tag, setTag] = useState("");
+  const [content, setContent] = useState("");
+  const canSave = content.trim().length > 0;
+
+  const submit = () => {
+    if (!canSave) return;
+    setNotes((prev) => [
+      {
+        id: `note-local-${Date.now()}`,
+        studentId,
+        date: new Date().toISOString().slice(0, 10),
+        category,
+        tag: tag.trim() || category,
+        content: content.trim(),
+        pencatat: "Wali Kelas",
+      },
+      ...prev,
+    ]);
+    setFormOpen(false);
+    setTag("");
+    setContent("");
+  };
+
+  return (
+    <section className="rounded-xl bg-card p-5 shadow-xs ring-1 ring-foreground/10">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">Catatan Karakter &amp; Jurnal Anekdot</h2>
+          <p className="text-xs text-muted-foreground">{notes.length} catatan tercatat</p>
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={() => setFormOpen((open) => !open)}>
+          <MessageSquarePlus className="size-4" aria-hidden="true" /> Catat Baru
+        </Button>
+      </div>
+
+      {formOpen && (
+        <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1.5 text-sm">
+              <span className="font-medium">Kategori</span>
+              {/* ponytail: <select> native cukup — DropdownMenu BaseUI overkill untuk satu pilihan. */}
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value as AnecdotalCategory)}
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              >
+                {categories.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm">
+              <span className="font-medium">Tag (opsional)</span>
+              <Input value={tag} onChange={(event) => setTag(event.target.value)} placeholder="mis. Kedisiplinan" />
+            </label>
+          </div>
+          <label className="block space-y-1.5 text-sm">
+            <span className="font-medium">Catatan</span>
+            <textarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              rows={3}
+              placeholder="Tuliskan catatan sikap / kejadian santri..."
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setFormOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={submit} disabled={!canSave}>Simpan Catatan</Button>
+          </div>
+        </div>
+      )}
+
+      <ul className="mt-4 space-y-3">
+        {notes.length === 0 ? (
+          <li className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Belum ada catatan untuk santri ini.
+          </li>
+        ) : (
+          notes.map((note) => {
+            const Icon = categoryIcons[note.category];
+            return (
+              <li key={note.id} className="rounded-lg bg-muted/40 p-4 transition-colors hover:bg-muted/70">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${categoryStyles[note.category]}`}>
+                    {note.category} • {note.tag}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatDate(note.date)}</span>
+                </div>
+                <p className="mt-2 text-sm">{note.content}</p>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Pencatat: {note.pencatat}</span>
+                  <Icon className="size-4 text-primary" aria-hidden="true" />
+                </div>
+              </li>
+            );
+          })
+        )}
+      </ul>
+    </section>
+  );
 }
 
 function AttendanceRing({ rate }: { rate: number }) {
@@ -261,6 +401,9 @@ function StudentProfileBoard({ studentId }: { studentId: string }) {
           </div>
         </div>
       </section>
+
+      {/* Section 4: Anecdotal Feed */}
+      <AnecdotalFeed studentId={student.id} />
     </div>
   );
 }
