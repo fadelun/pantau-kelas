@@ -16,6 +16,14 @@ export type Student = {
   nisn: string;
   parentPhone: string;
   tahfidzTarget: number;
+  emis: string;
+  asrama: string;
+  kamar: string;
+  musyrif: string;
+  ayahNama: string;
+  ibuNama: string;
+  tahfidzProgress: number;
+  violationPoints: number;
 };
 
 export type Assessment = {
@@ -69,6 +77,18 @@ const parentPhones = [
   "6281210010010",
 ];
 
+const ayahNames = [
+  "H. Bambang Sutrisno", "Ahmad Yusuf", "Sutrisno Ali", "H. Mahmud Karim",
+  "Rahmat Hidayat", "Sulaiman A.", "H. Abdullah S.", "Zainal Arifin",
+  "Hasan Basri", "M. Nur Hidayat",
+];
+
+const ibuNames = [
+  "Hj. Nurul Hidayati", "Siti Aminah", "Dewi Kartika", "Hj. Fatimah",
+  "Rina Marlina", "Sri Wahyuni", "Hj. Aisyah", "Lilis Suryani",
+  "Umi Kulsum", "Nia Kurnia",
+];
+
 function createStudents(classId: string, nisnOffset: number): Student[] {
   return studentNames.map((name, index) => ({
     id: `${classId}-student-${index + 1}`,
@@ -78,6 +98,14 @@ function createStudents(classId: string, nisnOffset: number): Student[] {
     nisn: `00${nisnOffset + index + 1}42${String(index + 1).padStart(4, "0")}`,
     parentPhone: parentPhones[index],
     tahfidzTarget: [3, 5, 2, 4, 6, 3, 5, 2, 4, 6][index],
+    emis: `3171${String(nisnOffset).padStart(3, "0")}${String(index + 1).padStart(2, "0")}`,
+    asrama: "Asrama Putra Al-Ghazali",
+    kamar: `Lt. 2 - Kamar ${String(index + 1).padStart(2, "0")}`,
+    musyrif: "Ust. Fauzi",
+    ayahNama: ayahNames[index],
+    ibuNama: ibuNames[index],
+    tahfidzProgress: [2.8, 4.5, 1.6, 3.2, 5.2, 2.1, 4.4, 1.5, 3.3, 5.5][index],
+    violationPoints: [0, 0, 10, 0, 5, 0, 0, 15, 0, 0][index],
   }));
 }
 
@@ -110,6 +138,33 @@ export const attendance: AttendanceRecord[] = students.flatMap((student, student
     status: attendanceStatuses[(studentIndex + dayIndex) % attendanceStatuses.length],
   })),
 );
+
+export type AnecdotalCategory = "Positif" | "Prestasi" | "Perhatian" | "Negatif";
+
+export type AnecdotalNote = {
+  id: string;
+  studentId: string;
+  date: string;
+  category: AnecdotalCategory;
+  tag: string;
+  content: string;
+  pencatat: string;
+};
+
+export const anecdotalNotes: AnecdotalNote[] = [
+  { id: "note-1", studentId: "class-9a-student-1", date: "2026-10-03", category: "Positif", tag: "Kedisiplinan", content: "Datang lebih awal ke madrasah selama seminggu dan memimpin barisan pagi dengan tertib.", pencatat: "Ust. Fauzi (Musyrif)" },
+  { id: "note-2", studentId: "class-9a-student-1", date: "2026-09-28", category: "Prestasi", tag: "Tahfidz", content: "Menyelesaikan ziyadah 0.5 juz dan mendapat predikat Mumtaz pada tasmi'.", pencatat: "Tim Kesiswaan" },
+  { id: "note-3", studentId: "class-9a-student-1", date: "2026-09-20", category: "Perhatian", tag: "Akademik", content: "Nilai Matematika menurun; perlu pendampingan belajar tambahan pekan ini.", pencatat: "Wali Kelas" },
+  { id: "note-4", studentId: "class-9a-student-2", date: "2026-10-01", category: "Prestasi", tag: "Akademik", content: "Juara 2 lomba Bahasa Arab tingkat madrasah se-kabupaten.", pencatat: "Tim Kesiswaan" },
+  { id: "note-5", studentId: "class-9a-student-2", date: "2026-09-25", category: "Positif", tag: "Akhlak", content: "Suka menolong teman yang kesulitan menghafal, sikap santun kepada guru.", pencatat: "Ust. Fauzi (Musyrif)" },
+  { id: "note-6", studentId: "class-9a-student-3", date: "2026-09-30", category: "Negatif", tag: "Ketertiban", content: "Terlambat masuk asrama 3 kali pekan ini; telah ditegur musyrif.", pencatat: "Ust. Fauzi (Musyrif)" },
+];
+
+export function getStudentNotes(studentId: string) {
+  return anecdotalNotes
+    .filter((note) => note.studentId === studentId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
 
 export function getStudentGrades(studentId: string) {
   return grades.filter((grade) => grade.studentId === studentId);
