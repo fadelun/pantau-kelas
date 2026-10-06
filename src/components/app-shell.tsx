@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   ClipboardCheck,
+  Database,
   LayoutDashboard,
   Menu,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   formatClassContext,
   getClassContext,
 } from "@/components/class-switcher";
+import { MasterDataProvider, useMasterData } from "@/lib/master-data";
 import { cn } from "@/lib/utils";
 
 const navigation: { label: string; href: string; heading?: string; icon: typeof LayoutDashboard }[] = [
@@ -26,6 +28,7 @@ const navigation: { label: string; href: string; heading?: string; icon: typeof 
   { label: "Presensi", href: "/presensi", icon: ClipboardCheck },
   { label: "Buku Nilai", href: "/buku-nilai", icon: BookOpen },
   { label: "Buku Santri", href: "/buku-santri", icon: UsersRound },
+  { label: "Data Master", href: "/data-master", icon: Database },
   { label: "Sinkronisasi", href: "/sinkronisasi", icon: RefreshCw },
 ];
 
@@ -34,13 +37,25 @@ type AppShellProps = {
 };
 
 export function AppShell({ children }: AppShellProps) {
+  return (
+    <MasterDataProvider>
+      <AppShellContent>{children}</AppShellContent>
+    </MasterDataProvider>
+  );
+}
+
+function AppShellContent({ children }: AppShellProps) {
+  const { classes } = useMasterData();
   const [activeClassId, setActiveClassId] = useState("class-9a");
   const pathname = usePathname();
   const activeNavigation =
     navigation.find((item) => item.href === pathname) ??
     navigation.find((item) => item.href !== "/" && pathname.startsWith(`${item.href}/`)) ??
     navigation[0];
-  const context = getClassContext(activeClassId);
+  const activeClass = classes.some((schoolClass) => schoolClass.id === activeClassId)
+    ? activeClassId
+    : classes[0]?.id ?? "";
+  const context = getClassContext(activeClass, classes);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -106,7 +121,7 @@ export function AppShell({ children }: AppShellProps) {
                 <h1 className="truncate font-heading text-lg font-bold tracking-tight sm:text-xl">{activeNavigation.heading ?? activeNavigation.label}</h1>
               </div>
             </div>
-            <ClassSwitcher value={activeClassId} onChange={setActiveClassId} />
+            <ClassSwitcher classes={classes} value={activeClass} onChange={setActiveClassId} />
           </div>
         </header>
 
@@ -124,7 +139,7 @@ export function AppShell({ children }: AppShellProps) {
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Navigasi mobile">
         <div className="mx-auto flex max-w-lg items-center justify-around">
-          {navigation.slice(0, 4).map((item) => {
+          {navigation.filter((item) => item.href !== "/sinkronisasi").slice(0, 5).map((item) => {
             const Icon = item.icon;
             const isActive = activeNavigation.href === item.href;
             return (
