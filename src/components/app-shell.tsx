@@ -2,12 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   ClipboardCheck,
   Database,
   LayoutDashboard,
+  LogOut,
   Menu,
   RefreshCw,
   UserRound,
@@ -48,6 +49,7 @@ function AppShellContent({ children }: AppShellProps) {
   const { classes } = useMasterData();
   const [activeClassId, setActiveClassId] = useState("class-9a");
   const pathname = usePathname();
+  const router = useRouter();
   const activeNavigation =
     navigation.find((item) => item.href === pathname) ??
     navigation.find((item) => item.href !== "/" && pathname.startsWith(`${item.href}/`)) ??
@@ -105,6 +107,20 @@ function AppShellContent({ children }: AppShellProps) {
               <p className="truncate text-xs font-semibold">Ust. Ahmad Fauzi</p>
               <p className="truncate text-[11px] text-muted-foreground">Wali kelas</p>
             </div>
+            <button
+              type="button"
+              className="ml-auto rounded-lg p-2 text-muted-foreground transition-colors hover:bg-background hover:text-destructive"
+              aria-label="Keluar"
+              title="Keluar"
+              onClick={async () => {
+                const { createClient } = await import("@/lib/supabase/client");
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                router.replace("/login");
+              }}
+            >
+              <LogOut className="size-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </aside>
