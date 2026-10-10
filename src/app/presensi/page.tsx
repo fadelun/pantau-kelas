@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCheck, Loader2, Save } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { PresensiModeSwitcher } from "@/components/presensi-mode-switcher";
 import { Button } from "@/components/ui/button";
-import { students, type AttendanceStatus } from "@/lib/mock-data";
+import { useMasterData } from "@/lib/master-data";
+import { createClient } from "@/lib/supabase/client";
+import { fetchAttendanceForDate, upsertAttendanceBatch } from "@/lib/supabase/queries";
+import type { AttendanceStatus } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const statusOptions: { value: AttendanceStatus; label: string }[] = [
@@ -30,7 +33,12 @@ const statusCountsLabels: Record<AttendanceStatus, string> = {
   A: "Alfa",
 };
 
-type SaveState = "idle" | "saving" | "saved";
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+// Tanggal hari ini dalam format YYYY-MM-DD timezone WIB
+function todayWIB() {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Jakarta" }).format(new Date());
+}
 
 export default function PresensiPage() {
   return (
@@ -41,7 +49,10 @@ export default function PresensiPage() {
 }
 
 function AttendanceBoard({ classId, className }: { classId: string; className: string }) {
-  const today = useMemo(
+  const { students } = useMasterData();
+  const classStudents = students.filter((student) => student.classId === classId);
+
+  const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat("id-ID", {
         weekday: "long",
@@ -53,16 +64,36 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
     [],
   );
 
-  const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>(() =>
-    Object.fromEntries(students.map((student) => [student.id, "H" as AttendanceStatus])),
-  );
+  const todayDate = useMemo(() => todayWIB(), []);
+
+  const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
+  const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  const classStudents = students.filter((student) => student.classId === classId);
+  // Load existing attendance for today from DB
+  useEffect(() => {
+    if (!classId) return;
+    const supabase = createClient();
+    fetchAttendanceForDate(supabase, classId, todayDate)
+      .then((existing) => {
+        // Default semua siswa = H; timpa dengan data DB yang ada
+        setStatuses(() => {
+          const defaults = Object.fromEntries(
+            classStudents.map((s) => [s.id, "H" as AttendanceStatus]),
+          );
+          return { ...defaults, ...existing };
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoaded(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, todayDate]);
+
   const counts = useMemo(() => {
     const result: Record<AttendanceStatus, number> = { H: 0, S: 0, I: 0, A: 0 };
     for (const student of classStudents) {
-      result[statuses[student.id]] += 1;
+      const s = statuses[student.id] ?? "H";
+      result[s] += 1;
     }
     return result;
   }, [classStudents, statuses]);
@@ -79,12 +110,28 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
     setSaveState("idle");
   };
 
-  const save = () => {
+  const save = async () => {
     setSaveState("saving");
-    // ponytail: mock save — persist ke Supabase di task 12.
-    window.setTimeout(() => setSaveState("saved"), 600);
-    window.setTimeout(() => setSaveState("idle"), 2400);
+    try {
+      const supabase = createClient();
+      await upsertAttendanceBatch(supabase, classId, todayDate, statuses);
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 1800);
+    } catch (err) {
+      console.error(err);
+      setSaveState("error");
+      window.setTimeout(() => setSaveState("idle"), 3000);
+    }
   };
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center py-24 text-muted-foreground">
+        <Loader2 className="mr-2 size-5 animate-spin" />
+        Memuat data presensi…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -94,7 +141,7 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
           <h2 className="mt-1 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
             Kelas {className}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{todayLabel}</p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
           <PresensiModeSwitcher />
@@ -117,7 +164,7 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
       <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <ul className="divide-y divide-border">
           {classStudents.map((student, index) => {
-            const active = statuses[student.id];
+            const active = statuses[student.id] ?? "H";
             return (
               <li key={student.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
@@ -159,7 +206,7 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
           <Button
             className="w-full gap-2 shadow-lg lg:w-fit"
             size="lg"
-            onClick={save}
+            onClick={() => void save()}
             disabled={saveState === "saving"}
           >
             {saveState === "saving" ? (
@@ -169,7 +216,13 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
             ) : (
               <CheckCheck className="size-4" />
             )}
-            {saveState === "saving" ? "Menyimpan..." : saveState === "saved" ? "Tersimpan" : "Simpan Presensi"}
+            {saveState === "saving"
+              ? "Menyimpan..."
+              : saveState === "saved"
+                ? "Tersimpan"
+                : saveState === "error"
+                  ? "Gagal, coba lagi"
+                  : "Simpan Presensi"}
           </Button>
         </div>
       </div>
