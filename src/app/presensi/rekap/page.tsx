@@ -162,7 +162,7 @@ function RecapBoard({ classId, className }: { classId: string; className: string
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map(({ student, counts, total, percentage }, index) => (
+                {rows.map(({ student, counts, percentage }, index) => (
                   <tr key={student.id} className="transition-colors hover:bg-muted/40">
                     <td className="px-4 py-3 text-xs tabular-nums text-muted-foreground">{index + 1}</td>
                     <td className="px-4 py-3 font-medium">{student.name}</td>

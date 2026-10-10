@@ -153,7 +153,7 @@ function AttendanceBoard({ classId, className }: { classId: string; className: s
       </section>
 
       <section className="grid grid-cols-4 gap-3" aria-label="Ringkasan status">
-        {statusOptions.map(({ value, label }) => (
+        {statusOptions.map(({ value }) => (
           <div key={value} className={cn("rounded-xl border p-3 text-center", statusStyles[value])}>
             <p className="text-xl font-bold tabular-nums">{counts[value]}</p>
             <p className="text-[11px] font-medium">{statusCountsLabels[value]}</p>

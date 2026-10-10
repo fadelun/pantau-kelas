@@ -47,7 +47,7 @@ export function AppShell({ children }: AppShellProps) {
 
 function AppShellContent({ children }: AppShellProps) {
   const { classes } = useMasterData();
-  const [activeClassId, setActiveClassId] = useState("class-9a");
+  const [activeClassId, setActiveClassId] = useState("");
   const pathname = usePathname();
   const router = useRouter();
   const activeNavigation =
