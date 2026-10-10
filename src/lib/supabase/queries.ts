@@ -185,6 +185,7 @@ export async function upsertAttendanceBatch(
     status,
     subject_id: null,
   }));
+  if (rows.length === 0) return;
   const { error } = await supabase
     .from("attendance")
     .upsert(rows, { onConflict: "student_id,subject_id,date" });
